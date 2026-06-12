@@ -1,0 +1,152 @@
+// FitRoom — Prisma schema (Batch 1)
+// Ported from the prototype data model. Modular monolith, Postgres.
+
+generator client {
+  // Prisma 7: output is now explicit. Pointing at the historical default
+  // location keeps `import { ... } from '@prisma/client'` working unchanged,
+  // and stays CommonJS-compatible with our NestJS setup.
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  DESIGNER
+  ADMIN
+}
+
+enum GarmentStretch {
+  NONE
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum OrderStatus {
+  REQUESTED
+  QUOTED
+  PAID
+  CUTTING
+  SEWING
+  QUALITY_CHECK
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model User {
+  id              String       @id @default(cuid())
+  name            String
+  email           String       @unique
+  phone           String?
+  passwordHash    String
+  role            Role         @default(CUSTOMER)
+  consentBodyData Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  fitProfiles     FitProfile[]
+  designer        Designer?
+  customerOrders  CustomOrder[] @relation("CustomerOrders")
+}
+
+model FitProfile {
+  id           String   @id @default(cuid())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  version      Int      @default(1)
+  fitPref      String   @default("regular") // tight | regular | relaxed | oversized
+  // measurements: { field: { val: number, conf: number } }
+  measurements Json
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Designer {
+  id                 String    @id @default(cuid())
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId             String    @unique
+  brand              String
+  location           String
+  leadTime           String    @default("10-14 days")
+  specialties        String[]
+  verificationStatus String    @default("PENDING") // PENDING | VERIFIED | SUSPENDED
+  payoutDetails      Json?
+  createdAt          DateTime  @default(now())
+
+  products           Product[]
+  orders             CustomOrder[] @relation("DesignerOrders")
+}
+
+model Product {
+  id          String         @id @default(cuid())
+  designer    Designer       @relation(fields: [designerId], references: [id], onDelete: Cascade)
+  designerId  String
+  title       String
+  category    String // Senator | Kaftan | Agbada
+  fabric      String
+  stretch     GarmentStretch @default(LOW)
+  priceKobo   Int            // store money as integer minor units
+  images      String[]
+  // sizeChart: { sizes: string[], chest: number[], waist: number[] }
+  sizeChart   Json
+  createdAt   DateTime       @default(now())
+
+  @@index([designerId])
+}
+
+model CustomOrder {
+  id                  String      @id @default(cuid())
+  customer            User        @relation("CustomerOrders", fields: [customerId], references: [id])
+  customerId          String
+  designer            Designer    @relation("DesignerOrders", fields: [designerId], references: [id])
+  designerId          String
+  productId           String?
+  garment             String
+  fabric              String
+  style               Json        // { neck, sleeve, length }
+  addons              String[]
+  notes               String?
+  recommendedSize     String?
+  fitConfidence       Int?
+  measurementSnapshot Json        // measurements at time of order
+  basePriceKobo       Int
+  status              OrderStatus @default(REQUESTED)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  quotes              Quote[]
+  events              OrderEvent[]
+
+  @@index([customerId])
+  @@index([designerId])
+}
+
+model Quote {
+  id         String      @id @default(cuid())
+  order      CustomOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId    String
+  amountKobo Int
+  leadTime   String?
+  status     String      @default("SENT") // SENT | ACCEPTED | EXPIRED
+  createdAt  DateTime    @default(now())
+
+  @@index([orderId])
+}
+
+model OrderEvent {
+  id        String      @id @default(cuid())
+  order     CustomOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId   String
+  stage     String
+  note      String?
+  createdAt DateTime    @default(now())
+
+  @@index([orderId])
+}

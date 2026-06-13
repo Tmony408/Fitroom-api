@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser, AuthUser } from '../auth/current-user.decorator';
 import { FitProfilesService } from './fit-profiles.service';
@@ -22,6 +22,16 @@ export class FitProfilesController {
   @Get('latest')
   latest(@CurrentUser() user: AuthUser) {
     return this.profiles.getLatest(user.id);
+  }
+
+  @Get(':id')
+  getOne(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.profiles.findOne(user.id, id);
+  }
+
+  @Delete(':id')
+  deleteOne(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.profiles.deleteOne(user.id, id);
   }
 
   @Delete()

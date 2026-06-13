@@ -1,0 +1,44 @@
+# Render blueprint for the FitRoom backend.
+# In Render: New + → Blueprint → connect the repo containing this file.
+# (If this is in a monorepo, set the service Root Directory to fitroom-api.)
+# Then fill the `sync: false` secrets in the dashboard.
+services:
+  - type: web
+    name: fitroom-api
+    runtime: node
+    plan: free
+    # --include=dev so build tools (nest cli, prisma, typescript) install even
+    # when NODE_ENV=production. postinstall runs `prisma generate`.
+    buildCommand: npm install --include=dev && npm run build
+    # release = `prisma migrate deploy && node dist/main`
+    startCommand: npm run release
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: DATABASE_URL          # Neon DIRECT (non-pooled) connection string
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true        # Render generates a strong secret
+      - key: ACCESS_TOKEN_TTL
+        value: 15m
+      - key: APP_URL               # your Vercel frontend URL
+        sync: false
+      - key: PAYMENT_PROVIDER
+        value: paystack
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: COMMISSION_BPS
+        value: "800"
+      - key: EMAIL_DRIVER
+        value: brevo
+      - key: BREVO_API_KEY
+        sync: false
+      - key: EMAIL_FROM            # a verified Brevo sender
+        sync: false
+      - key: EMAIL_FROM_NAME
+        value: FitRoom
+      - key: STORAGE_DRIVER
+        value: local
+      - key: SCAN_RETENTION_DAYS
+        value: "7"

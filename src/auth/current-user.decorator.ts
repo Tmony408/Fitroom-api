@@ -6,6 +6,7 @@ export interface AuthUser {
   email: string;
   role: string;
   consentBodyData: boolean;
+  emailVerified: boolean;
 }
 
 export const CurrentUser = createParamDecorator(

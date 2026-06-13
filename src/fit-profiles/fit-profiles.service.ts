@@ -28,11 +28,24 @@ export class FitProfilesService {
     return this.prisma.fitProfile.create({
       data: {
         userId,
+        label: dto.label?.trim() || 'My measurements',
         version,
         fitPref: dto.fitPref ?? 'regular',
         measurements: dto.measurements as unknown as Prisma.InputJsonValue,
       },
     });
+  }
+
+  async findOne(userId: string, id: string) {
+    const profile = await this.prisma.fitProfile.findFirst({ where: { id, userId } });
+    if (!profile) throw new NotFoundException('Fit profile not found');
+    return profile;
+  }
+
+  async deleteOne(userId: string, id: string) {
+    const { count } = await this.prisma.fitProfile.deleteMany({ where: { id, userId } });
+    if (count === 0) throw new NotFoundException('Fit profile not found');
+    return { deleted: count };
   }
 
   list(userId: string) {

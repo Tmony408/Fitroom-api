@@ -90,18 +90,21 @@ async function main() {
 
   const hasProfile = await prisma.fitProfile.findFirst({ where: { userId: customer.id } });
   if (!hasProfile) {
+    const base = {
+      height: { val: 178, conf: 88 },
+      shoulder: { val: 47, conf: 80 },
+      chest: { val: 104, conf: 85 },
+      waist: { val: 94, conf: 78 },
+      hip: { val: 102, conf: 82 },
+    };
+    // A customer can keep several named measurement sets.
+    await prisma.fitProfile.create({
+      data: { userId: customer.id, label: 'Regular', version: 1, fitPref: 'regular', measurements: base },
+    });
     await prisma.fitProfile.create({
       data: {
-        userId: customer.id,
-        version: 1,
-        fitPref: 'regular',
-        measurements: {
-          height: { val: 178, conf: 88 },
-          shoulder: { val: 47, conf: 80 },
-          chest: { val: 104, conf: 85 },
-          waist: { val: 94, conf: 78 },
-          hip: { val: 102, conf: 82 },
-        },
+        userId: customer.id, label: 'Relaxed', version: 2, fitPref: 'relaxed',
+        measurements: { ...base, chest: { val: 108, conf: 85 }, waist: { val: 98, conf: 78 } },
       },
     });
   }

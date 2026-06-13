@@ -2,11 +2,7 @@
 // Ported from the prototype data model. Modular monolith, Postgres.
 
 generator client {
-  // Prisma 7: output is now explicit. Pointing at the historical default
-  // location keeps `import { ... } from '@prisma/client'` working unchanged,
-  // and stays CommonJS-compatible with our NestJS setup.
   provider = "prisma-client-js"
-  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -39,6 +35,26 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum ScanStatus {
+  PENDING
+  UPLOADED
+  PROCESSED
+  FAILED
+  EXPIRED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  ABANDONED
+}
+
+enum ApiKeyType {
+  PUBLISHABLE // used in the browser widget; restricted by domain allowlist
+  SECRET      // server-to-server
+}
+
 model User {
   id              String       @id @default(cuid())
   name            String
@@ -47,23 +63,128 @@ model User {
   passwordHash    String
   role            Role         @default(CUSTOMER)
   consentBodyData Boolean      @default(false)
+  emailVerified   Boolean      @default(false)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
-  fitProfiles     FitProfile[]
-  designer        Designer?
-  customerOrders  CustomOrder[] @relation("CustomerOrders")
+  fitProfiles        FitProfile[]
+  designer           Designer?
+  customerOrders     CustomOrder[] @relation("CustomerOrders")
+  scanSessions       ScanSession[]
+  refreshTokens      RefreshToken[]
+  verificationTokens VerificationToken[]
+  b2bPartner         B2BPartner?
+}
+
+model B2BPartner {
+  id            String   @id @default(cuid())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String   @unique
+  company       String
+  domain        String   // allowlisted host for the browser widget, e.g. shop.example.com
+  webhookUrl    String?
+  webhookSecret String   // signs outgoing fit-event webhooks
+  plan          String   @default("widget")
+  status        String   @default("ACTIVE")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  apiKeys       ApiKey[]
+  events        FitEvent[]
+}
+
+model ApiKey {
+  id         String     @id @default(cuid())
+  partner    B2BPartner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  partnerId  String
+  type       ApiKeyType
+  prefix     String     // shown in the UI, e.g. pk_live_ab12…
+  keyHash    String     @unique // sha256 of the full key; raw shown once
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime   @default(now())
+
+  @@index([partnerId])
+}
+
+model FitEvent {
+  id              String     @id @default(cuid())
+  partner         B2BPartner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  partnerId       String
+  type            String     @default("FIT_CHECK")
+  productRef      String?
+  sizeRecommended String?
+  fitConfidence   Int?
+  metadata        Json?
+  createdAt       DateTime   @default(now())
+
+  @@index([partnerId])
+  @@index([createdAt])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String    @unique // sha256 of the opaque token (never store the raw token)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+enum VerificationType {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+}
+
+model VerificationToken {
+  id        String           @id @default(cuid())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  type      VerificationType
+  tokenHash String           @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId])
+}
+
+model ScanSession {
+  id               String     @id @default(cuid())
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId           String
+  status           ScanStatus @default(PENDING)
+  declaredHeightCm Int?
+  // assets: { front?: { key, mime }, side?: { key, mime } } — keys point at storage
+  assets           Json       @default("{}")
+  qualityResults   Json?
+  modelVersion     String?
+  // generated measurements: { field: { val, conf } }
+  measurements     Json?
+  expiresAt        DateTime
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model FitProfile {
   id           String   @id @default(cuid())
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId       String
+  label        String   @default("My measurements") // e.g. Tight fit, Regular, Relaxed, Wedding
   version      Int      @default(1)
   fitPref      String   @default("regular") // tight | regular | relaxed | oversized
   // measurements: { field: { val: number, conf: number } }
   measurements Json
   createdAt    DateTime @default(now())
+  // @default(now()) backfills the column for rows that existed before this
+  // field was added, so the migration can run on a non-empty table.
+  updatedAt    DateTime @default(now()) @updatedAt
 
   @@index([userId])
 }
@@ -123,9 +244,26 @@ model CustomOrder {
 
   quotes              Quote[]
   events              OrderEvent[]
+  payments            Payment[]
 
   @@index([customerId])
   @@index([designerId])
+}
+
+model Payment {
+  id               String        @id @default(cuid())
+  order            CustomOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId          String
+  amountKobo       Int
+  currency         String        @default("NGN")
+  provider         String        // mock | paystack | flutterwave | stripe
+  providerRef      String?       @unique
+  status           PaymentStatus @default(PENDING)
+  authorizationUrl String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([orderId])
 }
 
 model Quote {

@@ -1,4 +1,4 @@
-import { IsIn, IsObject, IsOptional } from 'class-validator';
+import { IsIn, IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
 import { FitPreference } from '../../fit/fit.types';
 
 /**
@@ -8,6 +8,11 @@ import { FitPreference } from '../../fit/fit.types';
 export class CreateFitProfileDto {
   @IsObject()
   measurements: Record<string, { val: number; conf: number }>;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  label?: string;
 
   @IsOptional()
   @IsIn(['tight', 'regular', 'relaxed', 'oversized'])

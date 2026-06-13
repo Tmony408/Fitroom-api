@@ -1,7 +1,9 @@
-node_modules
-dist
-coverage
+# Anchor patterns with a leading slash so they only match the project root —
+# a bare "storage" would also ignore src/storage/ (the storage MODULE source).
+/node_modules
+/dist
+/coverage
 .env
-storage
+/storage
 *.log
 .DS_Store

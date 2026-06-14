@@ -52,7 +52,8 @@ export class ProductsService {
           : {}),
       },
       orderBy: { createdAt: 'desc' },
-      include: { designer: { select: { brand: true, handle: true } } },
+      // only brand here — handle requires a migration that isn't applied in prod yet
+      include: { designer: { select: { brand: true } } },
     });
   }
 

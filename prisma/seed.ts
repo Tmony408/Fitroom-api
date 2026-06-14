@@ -32,6 +32,7 @@ async function main() {
     update: {},
     create: {
       userId: designerUser.id,
+      handle: 'lagos-royale',
       brand: 'Lagos Royale Couture',
       location: 'Lagos, NG',
       leadTime: '10-14 days',

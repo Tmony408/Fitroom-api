@@ -202,6 +202,7 @@ model Designer {
   id                 String    @id @default(cuid())
   user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId             String    @unique
+  handle             String?   @unique // shareable storefront slug, e.g. "lagos-royale"
   brand              String
   location           String
   leadTime           String    @default("10-14 days")

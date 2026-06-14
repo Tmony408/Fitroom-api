@@ -30,7 +30,13 @@ export class DesignersController {
     return this.designers.updateMe(user.id, dto);
   }
 
-  // Public designer profile (storefront).
+  // Public storefront by shareable handle, e.g. /designers/handle/lagos-royale
+  @Get('handle/:handle')
+  getByHandle(@Param('handle') handle: string) {
+    return this.designers.getByHandle(handle);
+  }
+
+  // Public designer profile (storefront) by id.
   @Get(':id')
   getById(@Param('id') id: string) {
     return this.designers.getById(id);

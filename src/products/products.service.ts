@@ -46,9 +46,13 @@ export class ProductsService {
     return this.prisma.product.findMany({
       where: {
         designerId: filter?.designerId,
-        category: filter?.category,
+        // case-insensitive so "agbada" / "Agbada" land in the same collection
+        ...(filter?.category
+          ? { category: { equals: filter.category, mode: 'insensitive' as const } }
+          : {}),
       },
       orderBy: { createdAt: 'desc' },
+      include: { designer: { select: { brand: true, handle: true } } },
     });
   }
 

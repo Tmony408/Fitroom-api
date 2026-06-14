@@ -1,4 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDesignerDto, UpdateDesignerDto } from './dto/designer.dto';
 
@@ -6,16 +7,35 @@ import { CreateDesignerDto, UpdateDesignerDto } from './dto/designer.dto';
 export class DesignersService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private slugify(s: string): string {
+    return (s || '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '').slice(0, 30) || 'designer';
+  }
+
+  /** A unique storefront handle derived from the brand. */
+  private async uniqueHandle(brand: string): Promise<string> {
+    const base = this.slugify(brand);
+    let handle = base;
+    for (let i = 0; i < 6; i++) {
+      const taken = await this.prisma.designer.findUnique({ where: { handle } });
+      if (!taken) return handle;
+      handle = `${base}-${randomBytes(2).toString('hex')}`;
+    }
+    return `${base}-${Date.now().toString(36)}`;
+  }
+
   /** Creates the caller's designer profile and promotes them to DESIGNER. */
   async create(userId: string, dto: CreateDesignerDto) {
     const existing = await this.prisma.designer.findUnique({ where: { userId } });
     if (existing) throw new ConflictException('Designer profile already exists');
 
+    const handle = await this.uniqueHandle(dto.brand);
     const [, designer] = await this.prisma.$transaction([
       this.prisma.user.update({ where: { id: userId }, data: { role: 'DESIGNER' } }),
       this.prisma.designer.create({
         data: {
           userId,
+          handle,
           brand: dto.brand,
           location: dto.location,
           leadTime: dto.leadTime ?? '10-14 days',
@@ -35,9 +55,26 @@ export class DesignersService {
     return designer;
   }
 
+  /** Public storefront lookup by shareable handle. */
+  async getByHandle(handle: string) {
+    const designer = await this.prisma.designer.findUnique({
+      where: { handle },
+      include: { products: { orderBy: { createdAt: 'desc' } } },
+    });
+    if (!designer || designer.verificationStatus === 'SUSPENDED') {
+      throw new NotFoundException('Store not found');
+    }
+    return designer;
+  }
+
   async getByUserId(userId: string) {
     const designer = await this.prisma.designer.findUnique({ where: { userId } });
     if (!designer) throw new NotFoundException('No designer profile for this user');
+    // lazy-backfill a handle for designers created before handles existed
+    if (!designer.handle) {
+      const handle = await this.uniqueHandle(designer.brand);
+      return this.prisma.designer.update({ where: { id: designer.id }, data: { handle } });
+    }
     return designer;
   }
 
@@ -75,6 +112,7 @@ export class DesignersService {
     return {
       designerId: designer.id,
       brand: designer.brand,
+      handle: designer.handle,
       openRequests,
       activeOrders,
       paidOrders: paidOrders.length,

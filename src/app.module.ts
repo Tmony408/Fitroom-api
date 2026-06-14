@@ -16,6 +16,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { B2bModule } from './b2b/b2b.module';
 import { AdminModule } from './admin/admin.module';
+import { SiteSettingsModule } from './site-settings/site-settings.module';
 import { EmailModule } from './email/email.module';
 import { HealthModule } from './health/health.module';
 import { validateEnv } from './config/env.validation';
@@ -40,6 +41,7 @@ import { validateEnv } from './config/env.validation';
     AnalyticsModule,
     B2bModule,
     AdminModule,
+    SiteSettingsModule,
     HealthModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

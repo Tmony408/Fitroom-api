@@ -55,6 +55,15 @@ enum ApiKeyType {
   SECRET      // server-to-server
 }
 
+// Single-row table (id="default") of admin-editable marketing imagery.
+model SiteSettings {
+  id        String   @id @default("default")
+  heroUrl   String?
+  authUrl   String?
+  gallery   String[] @default([]) // landing gallery image URLs, by garment slot
+  updatedAt DateTime @updatedAt
+}
+
 model User {
   id              String       @id @default(cuid())
   name            String

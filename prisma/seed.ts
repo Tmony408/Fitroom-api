@@ -6,11 +6,13 @@ const prisma = new PrismaClient();
 async function main() {
   const passwordHash = await bcrypt.hash('Password123!', 10);
 
-  // Admin
+  // Admin — credentials overridable via env for production seeding.
+  const adminEmail = process.env.ADMIN_EMAIL ?? 'admin@fitroom.io';
+  const adminPassword = process.env.ADMIN_PASSWORD ?? 'Password123!';
   await prisma.user.upsert({
-    where: { email: 'admin@fitroom.io' },
+    where: { email: adminEmail },
     update: {},
-    create: { name: 'Platform Admin', email: 'admin@fitroom.io', passwordHash, role: 'ADMIN' },
+    create: { name: 'Platform Admin', email: adminEmail, passwordHash: await bcrypt.hash(adminPassword, 10), role: 'ADMIN' },
   });
 
   // Designer user + profile
@@ -110,8 +112,9 @@ async function main() {
   }
 
   // eslint-disable-next-line no-console
-  console.log('Seed complete. Logins (password: Password123!):');
-  console.log('  admin@fitroom.io · designer@lagosroyale.com · customer@demo.io');
+  console.log('Seed complete.');
+  console.log(`  Admin: ${adminEmail} (password from ADMIN_PASSWORD env, default Password123!)`);
+  console.log('  Demo designer/customer (password Password123!): designer@lagosroyale.com · customer@demo.io');
 }
 
 main()

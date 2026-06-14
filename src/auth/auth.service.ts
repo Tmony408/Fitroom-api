@@ -73,7 +73,9 @@ export class AuthService {
     const user = await this.prisma.user.create({
       data: {
         name: dto.name, email: dto.email, phone: dto.phone, passwordHash,
-        role: dto.role ?? 'CUSTOMER', consentBodyData: dto.consentBodyData ?? false,
+        // never allow self-signup as ADMIN
+        role: dto.role === 'DESIGNER' ? 'DESIGNER' : 'CUSTOMER',
+        consentBodyData: dto.consentBodyData ?? false,
       },
     });
     await this.sendVerificationEmail(user.id, user.email);

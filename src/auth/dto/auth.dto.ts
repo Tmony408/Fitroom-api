@@ -1,5 +1,4 @@
-import { IsBoolean, IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
-import { Role } from '@prisma/client';
+import { IsBoolean, IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class RegisterDto {
   @IsString()
@@ -16,9 +15,10 @@ export class RegisterDto {
   @MinLength(8)
   password: string;
 
+  // Self-signup can only create CUSTOMER or DESIGNER — never ADMIN.
   @IsOptional()
-  @IsEnum(Role)
-  role?: Role;
+  @IsIn(['CUSTOMER', 'DESIGNER'])
+  role?: 'CUSTOMER' | 'DESIGNER';
 
   @IsOptional()
   @IsBoolean()

@@ -19,6 +19,7 @@ import { AdminModule } from './admin/admin.module';
 import { SiteSettingsModule } from './site-settings/site-settings.module';
 import { EmailModule } from './email/email.module';
 import { HealthModule } from './health/health.module';
+import { TryOnModule } from './tryon/tryon.module';
 import { validateEnv } from './config/env.validation';
 
 @Module({
@@ -43,6 +44,7 @@ import { validateEnv } from './config/env.validation';
     AdminModule,
     SiteSettingsModule,
     HealthModule,
+    TryOnModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
